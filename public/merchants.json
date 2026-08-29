@@ -1,0 +1,94 @@
+{
+  "$comment": "Merchant rules for Netflow. Edit this file and click Reload config (or refresh) — no rebuild needed. Rules are matched in the order listed: the FIRST rule with a matching 'contains' string wins, so put specific rules above general ones. Matching is a plain case-insensitive substring test against the raw narration, exactly as it appears in your statement. Nothing else is inferred.",
+  "merchants": [
+    {
+      "name":"Subscriptions",
+      "contains":["spotify","appleservices","apple","anthropic"]
+    },
+    {
+      "name":"Petrol",
+      "contains":["petrol", "bike","perrol"]
+    },
+    {
+      "name":"Groceris",
+      "contains":["rice","payir","dmart"]
+    },
+    {
+      "name":"Mobile Recharge",
+      "contains":["Airtel"]
+    },
+    {
+      "name": "Loans",
+      "contains": ["/BOI EMI COLLECTION/","IDFC FIRST BANK","THANIGAIVE/BANK OF INDIA"]
+    },
+    {
+      "name":"Clothing",
+      "contains":["Max Retail"]
+    },
+    {
+      "name":"iWish",
+      "contains":["IWISH CONTRIBUTION","iWish"]
+    },
+    {
+      "name":"Amazon",
+      "contains":["amazon"]
+    },
+    {
+      "name":"Car",
+      "contains":["car","car service","car wash","car insurance"]
+    },
+
+    {
+      "name":"Food Expenses",
+      "contains": ["food", "food exp","chicken","mutton","fish","eggs","nv","nonveg","paroota","parotta","hotel"]
+    },
+    {
+      "name":"Veggies",
+      "contains": ["veggies", "onions"]
+    },
+    {
+      "name":"GRT",
+      "contains": ["/AVENUES GR/"]
+    },
+    {
+      "name":"EB Bill",
+      "contains": ["BIL/ONL"]
+    },
+    {
+      "name": "Credit Card",
+      "contains": ["/CC BillPay"]
+    },
+    {
+      "name": "ATM",
+      "contains": ["/CASH WDL/"]
+    },
+    {
+      "name": "Baby",
+      "contains": ["/EASY MOM"]
+    },
+    {
+      "name": "Zomato",
+      "contains": ["ZOMATO"]
+    },
+    {
+      "name": "Fruits",
+      "contains": ["fruits", "banana"]
+    },
+    {
+      "name": "Electricity Bill",
+      "contains": ["BESCOM", "ELECTRICITY"]
+    },
+    {
+      "name": "Juice",
+      "contains": ["juice","elaneer"]
+    },
+    {
+      "name":"Swiggy",
+      "contains":["swiggy"]
+    },
+    {
+      "name":"UPI",
+      "contains":["UPI"]
+    }
+  ]
+}
