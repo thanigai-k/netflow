@@ -4,6 +4,8 @@ import { UNCATEGORISED } from "./merchant/config";
 export type TransactionType = "DEBIT" | "CREDIT";
 
 export interface Transaction {
+  /** Stable across re-renders and reloads. Namespaced by statement or "manual:...". */
+  id: string;
   /** ISO yyyy-mm-dd. Bank statement dates are naive calendar dates. */
   date: string;
   narration: string;

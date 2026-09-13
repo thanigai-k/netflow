@@ -93,9 +93,12 @@ function findHeaderRow(grid: Grid): number | null {
   return null;
 }
 
+/** A parsed row before it gets a stable id — assigned once the caller knows its position. */
+type ParsedRow = Omit<Transaction, "id">;
+
 function rowToTransaction(
   row: Partial<Record<CanonicalColumn, unknown>>,
-): Transaction | null {
+): ParsedRow | null {
   // Prefer the posted date; fall back to the value date.
   const dateCell = cleanCell(row.post_date) || cleanCell(row.value_date);
   const narration = cleanCell(row.details);
@@ -167,7 +170,8 @@ export function parseStatement(bytes: ArrayBuffer): Transaction[] {
     if (first && columnForHeader(first)) continue;
 
     const transaction = rowToTransaction(record);
-    if (transaction) transactions.push(transaction);
+    // Placeholder, local to this parse — the caller namespaces it per statement.
+    if (transaction) transactions.push({ ...transaction, id: String(transactions.length) });
   }
 
   if (transactions.length === 0) {

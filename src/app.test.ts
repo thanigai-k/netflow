@@ -8,6 +8,7 @@ import { MerchantResolver } from "./merchant/resolver";
 import { clearOverride, readOverride, toFileJson, writeOverride } from "./merchant/store";
 import { formatInr, parseAmount } from "./money";
 import { parseStatement, parseStatementDate } from "./parse/statement";
+import { registerStatement } from "./statements";
 
 function loadSample(bank: "hdfc" | "icici", merchants: MerchantRule[] = []) {
   const bytes = readFileSync(`src/fixtures/sample_statement_${bank}.xlsx`);
@@ -166,6 +167,27 @@ describe("statement parsing is unchanged", () => {
   });
 });
 
+describe("registerStatement", () => {
+  const rows = () => [
+    { id: "0", date: "2026-08-01", narration: "A", amount: 100, transactionType: "DEBIT" as const, balance: null, referenceNumber: null, merchant: "X" },
+    { id: "1", date: "2026-08-02", narration: "B", amount: 200, transactionType: "DEBIT" as const, balance: null, referenceNumber: null, merchant: "X" },
+  ];
+
+  it("namespaces row ids under a fresh statement id, in order", () => {
+    const { statement, rows: namespaced } = registerStatement(rows(), "a.xlsx");
+    expect(namespaced.map((r) => r.id)).toEqual([`${statement.id}:0`, `${statement.id}:1`]);
+    expect(statement.fileName).toBe("a.xlsx");
+    expect(statement.rowCount).toBe(2);
+  });
+
+  it("gives two loads of the same rows distinct ids", () => {
+    const first = registerStatement(rows(), "a.xlsx");
+    const second = registerStatement(rows(), "a.xlsx");
+    expect(first.statement.id).not.toBe(second.statement.id);
+    expect(first.rows[0]!.id).not.toBe(second.rows[0]!.id);
+  });
+});
+
 describe("money", () => {
   it("keeps sums exact where floats would drift", () => {
     expect(parseAmount("0.10")! + parseAmount("0.20")!).toBe(parseAmount("0.30"));
@@ -188,10 +210,10 @@ describe("money", () => {
 describe("filters", () => {
   const txns = enrich(
     [
-      { date: "2026-08-01", narration: "SWIGGY ORDER", amount: 30000, transactionType: "DEBIT", balance: null, referenceNumber: null, merchant: "Swiggy" },
-      { date: "2026-08-03", narration: "SWIGGY REFUND", amount: 10000, transactionType: "CREDIT", balance: null, referenceNumber: null, merchant: "Swiggy" },
-      { date: "2026-08-02", narration: "SWIGGY LATE", amount: 20000, transactionType: "DEBIT", balance: null, referenceNumber: null, merchant: "Swiggy" },
-      { date: "2026-08-04", narration: "UPI/RANDOM", amount: 5000, transactionType: "DEBIT", balance: null, referenceNumber: null, merchant: "UPI" },
+      { id: "1", date: "2026-08-01", narration: "SWIGGY ORDER", amount: 30000, transactionType: "DEBIT", balance: null, referenceNumber: null, merchant: "Swiggy" },
+      { id: "2", date: "2026-08-03", narration: "SWIGGY REFUND", amount: 10000, transactionType: "CREDIT", balance: null, referenceNumber: null, merchant: "Swiggy" },
+      { id: "3", date: "2026-08-02", narration: "SWIGGY LATE", amount: 20000, transactionType: "DEBIT", balance: null, referenceNumber: null, merchant: "Swiggy" },
+      { id: "4", date: "2026-08-04", narration: "UPI/RANDOM", amount: 5000, transactionType: "DEBIT", balance: null, referenceNumber: null, merchant: "UPI" },
     ],
     [{ name: "Swiggy", contains: ["SWIGGY"] }, { name: "UPI", contains: ["UPI/"] }],
   );
@@ -222,7 +244,9 @@ describe("filters", () => {
 });
 
 describe("groupByDate", () => {
+  let nextId = 0;
   const row = (date: string, amount: number, transactionType: "DEBIT" | "CREDIT") => ({
+    id: String(nextId++),
     date,
     narration: "n",
     amount,
