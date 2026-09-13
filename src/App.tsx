@@ -42,6 +42,7 @@ import { ConfigEditor } from "./components/ConfigEditor";
 import { Dashboard } from "./components/Dashboard";
 import { PageHero } from "./components/PageHero";
 import { TransactionTable } from "./components/TransactionTable";
+import { UndoToast } from "./components/UndoToast";
 import {
   loadConfig,
   UNCATEGORISED,
@@ -208,6 +209,13 @@ export default function App() {
           )}
         </div>
       </SidebarInset>
+      {store.undo ? (
+        <UndoToast
+          label={store.undo.label}
+          onUndo={store.undoDelete}
+          onDismiss={store.dismissUndo}
+        />
+      ) : null}
     </SidebarProvider>
   );
 }
