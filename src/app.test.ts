@@ -17,6 +17,7 @@ import { clearOverride, readOverride, toFileJson, writeOverride } from "./mercha
 import { formatInr, parseAmount } from "./money";
 import { parseStatement, parseStatementDate } from "./parse/statement";
 import { registerStatement } from "./statements";
+import { buildPatch, dedupeAgainst, liveTransactions } from "./transactions/live";
 
 function loadSample(bank: "hdfc" | "icici", merchants: MerchantRule[] = []) {
   const bytes = readFileSync(`src/fixtures/sample_statement_${bank}.xlsx`);
@@ -229,6 +230,98 @@ describe("registerStatement", () => {
     const second = registerStatement(rows(), "a.xlsx");
     expect(first.statement.id).not.toBe(second.statement.id);
     expect(first.rows[0]!.id).not.toBe(second.rows[0]!.id);
+  });
+});
+
+describe("transactions/live", () => {
+  const row = (id: string, date: string, narration: string, amount: number) => ({
+    id,
+    date,
+    narration,
+    amount,
+    transactionType: "DEBIT" as const,
+    balance: null,
+    referenceNumber: null,
+    merchant: "Unknown",
+  });
+
+  describe("dedupeAgainst", () => {
+    it("drops incoming rows matching an existing row on date+narration+amount", () => {
+      const existing = [row("a:0", "2026-08-01", "SWIGGY", 30000)];
+      const incoming = [
+        row("b:0", "2026-08-01", "SWIGGY", 30000), // duplicate, different id
+        row("b:1", "2026-08-02", "SWIGGY", 30000), // different date, kept
+      ];
+      expect(dedupeAgainst(existing, incoming).map((t) => t.id)).toEqual(["b:1"]);
+    });
+
+    it("also dedupes within the incoming batch itself", () => {
+      const incoming = [
+        row("b:0", "2026-08-01", "SWIGGY", 30000),
+        row("b:1", "2026-08-01", "SWIGGY", 30000),
+      ];
+      expect(dedupeAgainst([], incoming).map((t) => t.id)).toEqual(["b:0"]);
+    });
+  });
+
+  describe("buildPatch", () => {
+    it("converts a debit form into a negative-sign-free debit transaction", () => {
+      const patch = buildPatch({
+        type: "debit",
+        amount: "1,234.50",
+        date: "2026-08-23",
+        narration: "  Groceries  ",
+        category: "Food Expenses",
+      });
+      expect(patch).toEqual({
+        date: "2026-08-23",
+        narration: "Groceries",
+        merchant: "Food Expenses",
+        amount: 123450,
+        transactionType: "DEBIT",
+        balance: null,
+        referenceNumber: null,
+      });
+    });
+
+    it("defaults a blank narration to \"Manual entry\"", () => {
+      expect(buildPatch({ type: "credit", amount: "10", date: "2026-08-01", narration: "  ", category: "UPI" }).narration).toBe(
+        "Manual entry",
+      );
+    });
+  });
+
+  describe("liveTransactions", () => {
+    const merchants = [{ name: "Swiggy", contains: ["SWIGGY"] }];
+    const statementRows = [
+      row("s:0", "2026-08-01", "SWIGGY ORDER", 30000),
+      row("s:1", "2026-08-02", "RANDOM SHOP", 10000),
+    ];
+    const manual = [row("manual:1", "2026-08-03", "Cash lunch", 5000)];
+
+    it("enriches statement rows and tags provenance", () => {
+      const live = liveTransactions(statementRows, manual, {}, [], merchants);
+      expect(live.find((t) => t.id === "s:0")!.merchant).toBe("Swiggy");
+      expect(live.find((t) => t.id === "s:0")!.manual).toBe(false);
+      expect(live.find((t) => t.id === "manual:1")!.manual).toBe(true);
+    });
+
+    it("patches a statement row without mutating the base row, and flags it edited", () => {
+      const edits = { "s:1": { merchant: "Corrected", amount: 9999 } };
+      const live = liveTransactions(statementRows, manual, edits, [], merchants);
+      const patched = live.find((t) => t.id === "s:1")!;
+      expect(patched.merchant).toBe("Corrected");
+      expect(patched.amount).toBe(9999);
+      expect(patched.edited).toBe(true);
+      // The original array passed in is untouched.
+      expect(statementRows[1]!.merchant).toBe("Unknown");
+    });
+
+    it("drops deleted ids from the live set", () => {
+      const live = liveTransactions(statementRows, manual, {}, ["s:0"], merchants);
+      expect(live.map((t) => t.id)).not.toContain("s:0");
+      expect(live).toHaveLength(2);
+    });
   });
 });
 

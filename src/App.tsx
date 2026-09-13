@@ -1,5 +1,5 @@
 import { DownloadSimpleIcon } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
+import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -34,6 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { useTransactionStore } from "@/hooks/use-transaction-store";
 import { cn } from "@/lib/utils";
 import { buildSummary, coverage, uncategorisedSpending } from "./analytics";
 import { AppSidebar, type View } from "./components/AppSidebar";
@@ -41,7 +42,6 @@ import { ConfigEditor } from "./components/ConfigEditor";
 import { Dashboard } from "./components/Dashboard";
 import { PageHero } from "./components/PageHero";
 import { TransactionTable } from "./components/TransactionTable";
-import { enrich } from "./enrich";
 import {
   loadConfig,
   UNCATEGORISED,
@@ -49,7 +49,6 @@ import {
 } from "./merchant/config";
 import { clearOverride, readOverride, writeOverride } from "./merchant/store";
 import { formatExact } from "./money";
-import { parseStatement, StatementError } from "./parse/statement";
 import type { Transaction } from "./types";
 
 export default function App() {
@@ -62,13 +61,8 @@ export default function App() {
   // A narration handed over from the Uncategorised tab to seed a new rule.
   const [prefill, setPrefill] = useState<string | null>(null);
 
-  const [transactions, setTransactions] = useState<Transaction[] | null>(null);
-  const [fileError, setFileError] = useState<string | null>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
   const [view, setView] = useState<View>("dashboard");
-
-  // Parsed rows, kept so a config reload re-labels without re-reading the file.
-  const rawTransactions = useRef<Transaction[] | null>(null);
+  const store = useTransactionStore(merchants);
 
   const refreshConfig = useCallback(async () => {
     // Browser edits win over the shipped file until they are discarded.
@@ -116,43 +110,19 @@ export default function App() {
     void refreshConfig();
   }, [refreshConfig]);
 
-  // Re-label whenever the config changes. The file is never re-read.
-  useEffect(() => {
-    if (rawTransactions.current) {
-      setTransactions(enrich(rawTransactions.current, merchants));
-    }
-  }, [merchants]);
-
   const loadFile = useCallback(
     async (file: File) => {
-      setFileError(null);
-      try {
-        const parsed = parseStatement(await file.arrayBuffer());
-        rawTransactions.current = parsed;
-        setTransactions(enrich(parsed, merchants));
-        setFileName(file.name);
-        setView("dashboard");
-      } catch (cause) {
-        rawTransactions.current = null;
-        setTransactions(null);
-        setFileError(
-          cause instanceof StatementError
-            ? cause.message
-            : `Could not read this file. ${cause instanceof Error ? cause.message : ""}`,
-        );
-      }
+      const ok = await store.loadFile(file);
+      if (ok) setView("dashboard");
     },
-    [merchants],
+    [store],
   );
 
-  const stats = useMemo(
-    () => (transactions ? coverage(transactions) : null),
-    [transactions],
-  );
-  const summary = useMemo(
-    () => (transactions ? buildSummary(transactions) : null),
-    [transactions],
-  );
+  // Sidebar's uncategorised badge and file-range summary cover all loaded
+  // data, not just the selected month — it's a worklist, not a period report.
+  const allStats = coverage(store.allTransactions);
+  const allSummary = buildSummary(store.allTransactions);
+  const latestStatement = store.statements.at(-1) ?? null;
 
   return (
     <SidebarProvider
@@ -165,27 +135,29 @@ export default function App() {
       <AppSidebar
         view={view}
         onView={setView}
-        disabled={!transactions}
-        uncategorised={stats?.uncategorised ?? 0}
-        fileName={fileName}
+        disabled={!store.hasData}
+        uncategorised={allStats.uncategorised}
+        fileName={latestStatement?.fileName ?? null}
         period={
-          summary?.from && summary.to ? `${summary.from} → ${summary.to}` : null
+          allSummary.from && allSummary.to
+            ? `${allSummary.from} → ${allSummary.to}`
+            : null
         }
-        transactionCount={summary?.transactionCount ?? 0}
+        transactionCount={allSummary.transactionCount}
         ruleCount={merchants.length}
         onReload={() => void refreshConfig()}
         onFile={loadFile}
       />
       <SidebarInset>
         <div className="@container/main flex flex-1 flex-col gap-6 p-6 lg:p-8">
-          {fileError ? (
+          {store.fileError ? (
             <Alert variant="destructive">
               <AlertTitle>Could not read that statement</AlertTitle>
-              <AlertDescription>{fileError}</AlertDescription>
+              <AlertDescription>{store.fileError}</AlertDescription>
             </Alert>
           ) : null}
 
-          {!transactions ? (
+          {!store.hasData ? (
             <>
               <ConfigStatus
                 loaded={configLoaded}
@@ -197,11 +169,14 @@ export default function App() {
               <Landing ruleCount={merchants.length} onFile={loadFile} />
             </>
           ) : view === "dashboard" ? (
-            <Dashboard transactions={transactions} onView={setView} />
+            <Dashboard transactions={store.transactions} onView={setView} />
           ) : view === "transactions" ? (
-            <TransactionTable transactions={transactions} />
+            <TransactionTable transactions={store.transactions} />
           ) : view === "uncategorised" ? (
-            <Uncategorised transactions={transactions} onAddRule={addRuleFor} />
+            <Uncategorised
+              transactions={store.allTransactions}
+              onAddRule={addRuleFor}
+            />
           ) : (
             <ConfigHelp
               merchants={merchants}

@@ -175,10 +175,10 @@ export function monthSummaries(transactions: Transaction[]): MonthSummary[] {
 }
 
 /** Transactions for one calendar month, or everything when `monthKey` is "all". */
-export function filterByMonth(
-  transactions: Transaction[],
+export function filterByMonth<T extends Transaction>(
+  transactions: T[],
   monthKey: string | "all",
-): Transaction[] {
+): T[] {
   if (monthKey === "all") return transactions;
   return transactions.filter((t) => t.date.slice(0, 7) === monthKey);
 }
