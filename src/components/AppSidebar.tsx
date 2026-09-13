@@ -1,5 +1,6 @@
 import { ArrowsClockwiseIcon, UploadSimpleIcon } from "@phosphor-icons/react";
 
+import type { MonthSummary } from "@/analytics";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Sidebar,
@@ -13,6 +14,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { monthKeyLabel } from "@/dates";
+import type { StatementMeta } from "@/statements";
 
 export type View = "dashboard" | "transactions" | "uncategorised" | "config";
 
@@ -23,14 +26,23 @@ export const VIEWS: { id: View; label: string }[] = [
   { id: "config", label: "Config" },
 ];
 
+/** "June 2026 to August 2026", or just "August 2026" for a single month. */
+function statementRangeLabel(months: MonthSummary[]): string | null {
+  if (months.length === 0) return null;
+  const sorted = [...months].sort((a, b) => a.month.localeCompare(b.month));
+  const first = sorted[0]!.month;
+  const last = sorted[sorted.length - 1]!.month;
+  return first === last ? monthKeyLabel(first) : `${monthKeyLabel(first)} to ${monthKeyLabel(last)}`;
+}
+
 export function AppSidebar({
   view,
   onView,
   disabled,
   uncategorised,
-  fileName,
-  period,
-  transactionCount,
+  statements,
+  months,
+  selectedMonth,
   ruleCount,
   onReload,
   onFile,
@@ -39,13 +51,17 @@ export function AppSidebar({
   onView: (view: View) => void;
   disabled: boolean;
   uncategorised: number;
-  fileName: string | null;
-  period: string | null;
-  transactionCount: number;
+  statements: StatementMeta[];
+  months: MonthSummary[];
+  selectedMonth: string;
   ruleCount: number;
   onReload: () => void;
   onFile: (file: File) => void;
 }) {
+  const selectedSummary =
+    selectedMonth === "all"
+      ? { label: "All months", count: months.reduce((sum, m) => sum + m.count, 0) }
+      : { label: monthKeyLabel(selectedMonth), count: months.find((m) => m.month === selectedMonth)?.count ?? 0 };
   return (
     <Sidebar variant="inset">
       <SidebarHeader className="gap-0.5 px-4 pt-6 pb-8 group-data-[collapsible=icon]:hidden">
@@ -80,14 +96,13 @@ export function AppSidebar({
       </SidebarContent>
 
       <SidebarFooter className="gap-2 p-3">
-        {fileName ? (
+        {statements.length > 0 ? (
           <div className="bg-sidebar-accent text-sidebar-accent-foreground flex flex-col gap-1 rounded-xl p-4 group-data-[collapsible=icon]:hidden">
-            <p className="truncate text-sm font-medium" title={fileName}>
-              {fileName}
+            <p className="truncate text-sm font-medium">
+              {statements.length} loaded · {statementRangeLabel(months)}
             </p>
             <p className="text-muted-foreground text-xs">
-              {period ? `${period} · ` : ""}
-              {transactionCount} txns
+              Showing {selectedSummary.label} · {selectedSummary.count} txns
             </p>
             <label
               htmlFor="sidebar-statement-file"
@@ -97,7 +112,7 @@ export function AppSidebar({
               })}
             >
               <UploadSimpleIcon data-icon="inline-start" />
-              Load another statement
+              Add a month
               <input
                 id="sidebar-statement-file"
                 type="file"

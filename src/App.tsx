@@ -36,7 +36,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useTransactionStore } from "@/hooks/use-transaction-store";
 import { cn } from "@/lib/utils";
-import { buildSummary, coverage, uncategorisedSpending } from "./analytics";
+import { coverage, uncategorisedSpending } from "./analytics";
 import { AppSidebar, type View } from "./components/AppSidebar";
 import { ConfigEditor } from "./components/ConfigEditor";
 import { Dashboard } from "./components/Dashboard";
@@ -118,11 +118,9 @@ export default function App() {
     [store],
   );
 
-  // Sidebar's uncategorised badge and file-range summary cover all loaded
-  // data, not just the selected month — it's a worklist, not a period report.
+  // Sidebar's uncategorised badge covers all loaded data, not just the
+  // selected month — it's a worklist, not a period report.
   const allStats = coverage(store.allTransactions);
-  const allSummary = buildSummary(store.allTransactions);
-  const latestStatement = store.statements.at(-1) ?? null;
 
   return (
     <SidebarProvider
@@ -137,13 +135,9 @@ export default function App() {
         onView={setView}
         disabled={!store.hasData}
         uncategorised={allStats.uncategorised}
-        fileName={latestStatement?.fileName ?? null}
-        period={
-          allSummary.from && allSummary.to
-            ? `${allSummary.from} → ${allSummary.to}`
-            : null
-        }
-        transactionCount={allSummary.transactionCount}
+        statements={store.statements}
+        months={store.months}
+        selectedMonth={store.selectedMonth}
         ruleCount={merchants.length}
         onReload={() => void refreshConfig()}
         onFile={loadFile}
