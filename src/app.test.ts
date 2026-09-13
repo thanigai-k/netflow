@@ -207,8 +207,16 @@ describe("month filtering", () => {
     expect(filterByMonth(txns, "all")).toHaveLength(4);
   });
 
+  it("keeps an all-ignored month in the list, at zero count/total", () => {
+    const withIgnored = txns.map((t) => ({ ...t, ignored: t.date.startsWith("2026-07") }));
+    expect(monthSummaries(withIgnored)).toEqual([
+      { month: "2026-08", count: 2, totalDebit: 100 },
+      { month: "2026-07", count: 0, totalDebit: 0 },
+    ]);
+  });
+
   it("formats a month key as a human label", () => {
-    expect(monthKeyLabel("2026-08")).toBe("August 2026");
+    expect(monthKeyLabel("2026-08")).toBe("Aug 2026");
   });
 });
 
@@ -300,7 +308,7 @@ describe("transactions/live", () => {
     const manual = [row("manual:1", "2026-08-03", "Cash lunch", 5000)];
 
     it("enriches statement rows and tags provenance", () => {
-      const live = liveTransactions(statementRows, manual, {}, [], merchants);
+      const live = liveTransactions(statementRows, manual, {}, [], [], merchants);
       expect(live.find((t) => t.id === "s:0")!.merchant).toBe("Swiggy");
       expect(live.find((t) => t.id === "s:0")!.manual).toBe(false);
       expect(live.find((t) => t.id === "manual:1")!.manual).toBe(true);
@@ -308,7 +316,7 @@ describe("transactions/live", () => {
 
     it("patches a statement row without mutating the base row, and flags it edited", () => {
       const edits = { "s:1": { merchant: "Corrected", amount: 9999 } };
-      const live = liveTransactions(statementRows, manual, edits, [], merchants);
+      const live = liveTransactions(statementRows, manual, edits, [], [], merchants);
       const patched = live.find((t) => t.id === "s:1")!;
       expect(patched.merchant).toBe("Corrected");
       expect(patched.amount).toBe(9999);
@@ -318,9 +326,16 @@ describe("transactions/live", () => {
     });
 
     it("drops deleted ids from the live set", () => {
-      const live = liveTransactions(statementRows, manual, {}, ["s:0"], merchants);
+      const live = liveTransactions(statementRows, manual, {}, ["s:0"], [], merchants);
       expect(live.map((t) => t.id)).not.toContain("s:0");
       expect(live).toHaveLength(2);
+    });
+
+    it("tags ignored ids without dropping them", () => {
+      const live = liveTransactions(statementRows, manual, {}, [], ["s:0"], merchants);
+      expect(live).toHaveLength(3);
+      expect(live.find((t) => t.id === "s:0")!.ignored).toBe(true);
+      expect(live.find((t) => t.id === "s:1")!.ignored).toBe(false);
     });
   });
 });
@@ -407,6 +422,15 @@ describe("groupByDate", () => {
 
   it("returns no groups for no rows", () => {
     expect(groupByDate([])).toEqual([]);
+  });
+
+  it("keeps ignored rows in the group but out of its net", () => {
+    const groups = groupByDate([
+      { ...row("2026-08-03", 30000, "DEBIT"), ignored: true },
+      row("2026-08-03", 50000, "CREDIT"),
+    ]);
+    expect(groups[0]!.rows).toHaveLength(2);
+    expect(groups[0]!.net).toBe(50000);
   });
 });
 

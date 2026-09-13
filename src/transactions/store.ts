@@ -19,6 +19,8 @@ export interface PersistedTransactionState {
   /** Keyed by statement-row id. The base row itself is never mutated. */
   edits: Record<string, Partial<Transaction>>;
   deletedIds: string[];
+  /** Excluded from spend totals/counts but still shown in the transaction list. */
+  ignoredIds: string[];
 }
 
 const EMPTY: PersistedTransactionState = {
@@ -27,6 +29,7 @@ const EMPTY: PersistedTransactionState = {
   manual: [],
   edits: {},
   deletedIds: [],
+  ignoredIds: [],
 };
 
 export function readState(): PersistedTransactionState {
@@ -46,6 +49,7 @@ export function readState(): PersistedTransactionState {
       manual: Array.isArray(parsed.manual) ? parsed.manual : [],
       edits: parsed.edits && typeof parsed.edits === "object" ? parsed.edits : {},
       deletedIds: Array.isArray(parsed.deletedIds) ? parsed.deletedIds : [],
+      ignoredIds: Array.isArray(parsed.ignoredIds) ? parsed.ignoredIds : [],
     };
   } catch {
     return EMPTY;

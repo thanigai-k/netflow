@@ -159,14 +159,22 @@ export interface MonthSummary {
   totalDebit: Paise;
 }
 
-/** One entry per calendar month present in the data, newest first. */
-export function monthSummaries(transactions: Transaction[]): MonthSummary[] {
+/**
+ * One entry per calendar month present in the data, newest first. Ignored
+ * rows still stake out a month (so it stays reachable in the picker) but
+ * don't contribute to its count or total.
+ */
+export function monthSummaries(
+  transactions: (Transaction & { ignored?: boolean })[],
+): MonthSummary[] {
   const totals = new Map<string, { count: number; totalDebit: Paise }>();
   for (const t of transactions) {
     const month = t.date.slice(0, 7);
     const entry = totals.get(month) ?? { count: 0, totalDebit: 0 };
-    entry.count += 1;
-    if (isDebit(t)) entry.totalDebit += t.amount;
+    if (!t.ignored) {
+      entry.count += 1;
+      if (isDebit(t)) entry.totalDebit += t.amount;
+    }
     totals.set(month, entry);
   }
   return [...totals]
@@ -193,8 +201,11 @@ export interface DayGroup<T extends Transaction = Transaction> {
 /**
  * Folds a date-sorted list into one group per calendar day. Only consecutive
  * equal dates are folded, so the caller's sort order is preserved as-is.
+ * Ignored rows still render in the group but don't move its net.
  */
-export function groupByDate<T extends Transaction>(rows: T[]): DayGroup<T>[] {
+export function groupByDate<T extends Transaction & { ignored?: boolean }>(
+  rows: T[],
+): DayGroup<T>[] {
   const groups: DayGroup<T>[] = [];
   for (const t of rows) {
     let group = groups[groups.length - 1];
@@ -203,7 +214,7 @@ export function groupByDate<T extends Transaction>(rows: T[]): DayGroup<T>[] {
       groups.push(group);
     }
     group.rows.push(t);
-    group.net += isDebit(t) ? -t.amount : t.amount;
+    if (!t.ignored) group.net += isDebit(t) ? -t.amount : t.amount;
   }
   return groups;
 }

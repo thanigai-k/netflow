@@ -6,6 +6,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { monthKeyLabel } from "@/dates";
@@ -38,6 +39,17 @@ export function MonthPicker({
         }
       />
       <DropdownMenuContent align="start" className="min-w-72">
+        {months.length > 0 ? (
+          <>
+            <MonthPickerItem
+              active={selected === "all"}
+              label="All months"
+              meta={`${totalCount} txns · ${formatExact(totalDebit)}`}
+              onClick={() => onSelect("all")}
+            />
+            <DropdownMenuSeparator />
+          </>
+        ) : null}
         {months.map((m) => (
           <MonthPickerItem
             key={m.month}
@@ -47,14 +59,6 @@ export function MonthPicker({
             onClick={() => onSelect(m.month)}
           />
         ))}
-        {months.length > 0 ? (
-          <MonthPickerItem
-            active={selected === "all"}
-            label="All months"
-            meta={`${totalCount} txns · ${formatExact(totalDebit)}`}
-            onClick={() => onSelect("all")}
-          />
-        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );

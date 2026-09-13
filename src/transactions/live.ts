@@ -4,7 +4,12 @@ import { parseAmount } from "@/money";
 import type { Transaction, TransactionType } from "@/types";
 
 /** A live transaction, tagged with where it came from. */
-export type LiveTransaction = Transaction & { manual: boolean; edited: boolean };
+export type LiveTransaction = Transaction & {
+  manual: boolean;
+  edited: boolean;
+  /** Excluded from spend totals/counts but still shown in the transaction list. */
+  ignored: boolean;
+};
 
 /** Values from the add/edit modal, before they become a patch. */
 export interface TransactionFormValues {
@@ -49,26 +54,30 @@ export function buildPatch(form: TransactionFormValues): Omit<Transaction, "id">
 /**
  * The live, editable transaction set: statement rows enriched and patched —
  * never mutated in place, so a statement row is never silently rewritten —
- * manual rows appended, deletions dropped.
+ * manual rows appended, deletions dropped. Ignored rows are tagged, not
+ * dropped — they still belong in the transaction list, just not in totals.
  */
 export function liveTransactions(
   statementRows: Transaction[],
   manual: Transaction[],
   edits: Record<string, Partial<Transaction>>,
   deletedIds: string[],
+  ignoredIds: string[],
   merchants: MerchantRule[],
 ): LiveTransaction[] {
+  const ignored = new Set(ignoredIds);
   const enriched = enrich(statementRows, merchants);
   const patched: LiveTransaction[] = enriched.map((row) => {
     const patch = edits[row.id];
     return patch
-      ? { ...row, ...patch, manual: false, edited: true }
-      : { ...row, manual: false, edited: false };
+      ? { ...row, ...patch, manual: false, edited: true, ignored: ignored.has(row.id) }
+      : { ...row, manual: false, edited: false, ignored: ignored.has(row.id) };
   });
   const manualTagged: LiveTransaction[] = manual.map((row) => ({
     ...row,
     manual: true,
     edited: false,
+    ignored: ignored.has(row.id),
   }));
   const deleted = new Set(deletedIds);
   return [...patched, ...manualTagged].filter((row) => !deleted.has(row.id));

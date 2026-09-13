@@ -17,6 +17,7 @@ export function PageHero({
   subtitle,
   controls,
   stats,
+  actions,
 }: {
   eyebrow?: string;
   title: string;
@@ -24,6 +25,8 @@ export function PageHero({
   /** Slotted above the eyebrow — e.g. the shared month picker. */
   controls?: React.ReactNode;
   stats?: HeroStat[];
+  /** Slotted top-right, before stats — e.g. a page-level primary button. */
+  actions?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-6">
@@ -44,22 +47,27 @@ export function PageHero({
           </div>
         </div>
       </div>
-      {stats && stats.length > 0 ? (
-        <dl className="flex flex-wrap gap-x-10 gap-y-4">
-          {stats.map((stat) => (
-            <div key={stat.label} className="flex flex-col gap-1 text-right">
-              <dt className="text-muted-foreground text-sm">{stat.label}</dt>
-              <dd
-                className={cn(
-                  "text-xl font-semibold tabular-nums",
-                  stat.className,
-                )}
-              >
-                {stat.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
+      {actions || (stats && stats.length > 0) ? (
+        <div className="flex flex-wrap items-center gap-6">
+          {actions}
+          {stats && stats.length > 0 ? (
+            <dl className="flex flex-wrap gap-x-10 gap-y-4">
+              {stats.map((stat) => (
+                <div key={stat.label} className="flex flex-col gap-1 text-right">
+                  <dt className="text-muted-foreground text-sm">{stat.label}</dt>
+                  <dd
+                    className={cn(
+                      "text-xl font-semibold tabular-nums",
+                      stat.className,
+                    )}
+                  >
+                    {stat.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

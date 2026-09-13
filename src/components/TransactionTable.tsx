@@ -2,6 +2,8 @@ import {
   CaretDownIcon,
   CaretUpDownIcon,
   CaretUpIcon,
+  EyeIcon,
+  EyeSlashIcon,
   PencilSimpleIcon,
   PlusIcon,
   TrashIcon,
@@ -66,6 +68,7 @@ export function TransactionTable({
   onAdd,
   onEdit,
   onDelete,
+  onToggleIgnore,
 }: {
   transactions: LiveTransaction[];
   months: MonthSummary[];
@@ -73,10 +76,11 @@ export function TransactionTable({
   onSelectMonth: (monthKey: string) => void;
   /** Merchant names from merchants.json, for the add/edit modal's Category field. */
   categories: string[];
-  touchedSummary: { manual: number; edited: number; deleted: number };
+  touchedSummary: { manual: number; edited: number; deleted: number; ignored: number };
   onAdd: (form: TransactionFormValues) => void;
   onEdit: (id: string, form: TransactionFormValues) => void;
   onDelete: (id: string) => void;
+  onToggleIgnore: (id: string) => void;
 }) {
   const [formTarget, setFormTarget] = useState<Transaction | "new" | null>(null);
   const [query, setQuery] = useState("");
@@ -112,11 +116,14 @@ export function TransactionTable({
   }, [transactions, query, picked, flow, sort]);
 
   // The filtered slice's own net, so the hero number tracks the filters.
+  // Ignored rows still render below but don't move this number.
   const filteredNet = useMemo(
     () =>
       rows.reduce(
         (sum, t) =>
-          sum + (t.transactionType === "DEBIT" ? -t.amount : t.amount),
+          t.ignored
+            ? sum
+            : sum + (t.transactionType === "DEBIT" ? -t.amount : t.amount),
         0,
       ),
     [rows],
@@ -136,7 +143,8 @@ export function TransactionTable({
         : { key, dir: key === "merchant" ? "asc" : "desc" },
     );
 
-  const touched = touchedSummary.manual + touchedSummary.edited + touchedSummary.deleted;
+  const touched =
+    touchedSummary.manual + touchedSummary.edited + touchedSummary.deleted + touchedSummary.ignored;
 
   return (
     <>
@@ -164,7 +172,7 @@ export function TransactionTable({
       <p className="text-muted-foreground -mt-3 text-sm">
         {touched === 0
           ? "No manual changes in this month"
-          : `${touchedSummary.manual} added · ${touchedSummary.edited} edited · ${touchedSummary.deleted} deleted`}
+          : `${touchedSummary.manual} added · ${touchedSummary.edited} edited · ${touchedSummary.deleted} deleted · ${touchedSummary.ignored} ignored`}
       </p>
 
       <Card className="py-3">
@@ -287,6 +295,7 @@ export function TransactionTable({
                             indent
                             onEdit={() => setFormTarget(t)}
                             onDelete={() => onDelete(t.id)}
+                            onToggleIgnore={() => onToggleIgnore(t.id)}
                           />
                         ))}
                       </Fragment>
@@ -297,6 +306,7 @@ export function TransactionTable({
                         transaction={t}
                         onEdit={() => setFormTarget(t)}
                         onDelete={() => onDelete(t.id)}
+                        onToggleIgnore={() => onToggleIgnore(t.id)}
                       />
                     ))}
               </TableBody>
@@ -392,16 +402,18 @@ function TransactionRow({
   indent = false,
   onEdit,
   onDelete,
+  onToggleIgnore,
 }: {
   transaction: LiveTransaction;
   /** Inside a day group the date lives on the group header, not the row. */
   indent?: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  onToggleIgnore: () => void;
 }) {
   const credit = t.transactionType === "CREDIT";
   return (
-    <TableRow>
+    <TableRow className={cn(t.ignored && "opacity-50")}>
       <TableCell className="text-muted-foreground whitespace-nowrap">
         {indent ? "" : t.date}
       </TableCell>
@@ -420,6 +432,11 @@ function TransactionRow({
               Edited
             </Badge>
           ) : null}
+          {t.ignored ? (
+            <Badge variant="secondary" className="flex-none font-sans">
+              Ignored
+            </Badge>
+          ) : null}
         </div>
       </TableCell>
       <TableCell>
@@ -428,7 +445,7 @@ function TransactionRow({
       <TableCell
         className={cn(
           "text-right tabular-nums whitespace-nowrap",
-          credit && "text-success",
+          credit && !t.ignored && "text-success",
         )}
       >
         {credit ? "+" : "−"}
@@ -438,6 +455,14 @@ function TransactionRow({
         <div className="flex items-center justify-end gap-1">
           <Button variant="ghost" size="icon-sm" title="Edit" onClick={onEdit}>
             <PencilSimpleIcon />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title={t.ignored ? "Un-ignore" : "Ignore"}
+            onClick={onToggleIgnore}
+          >
+            {t.ignored ? <EyeSlashIcon /> : <EyeIcon />}
           </Button>
           <Button
             variant="ghost"

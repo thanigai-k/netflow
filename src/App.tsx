@@ -40,6 +40,7 @@ import { coverage, uncategorisedSpending } from "./analytics";
 import { AppSidebar, type View } from "./components/AppSidebar";
 import { ConfigEditor } from "./components/ConfigEditor";
 import { Dashboard } from "./components/Dashboard";
+import { DataStorage } from "./components/DataStorage";
 import { PageHero } from "./components/PageHero";
 import { TransactionTable } from "./components/TransactionTable";
 import { UndoToast } from "./components/UndoToast";
@@ -120,8 +121,9 @@ export default function App() {
   );
 
   // Sidebar's uncategorised badge covers all loaded data, not just the
-  // selected month — it's a worklist, not a period report.
-  const allStats = coverage(store.allTransactions);
+  // selected month — it's a worklist, not a period report. Ignored rows are
+  // excluded, same as every other spend number.
+  const allStats = coverage(store.visibleAllTransactions);
 
   return (
     <SidebarProvider
@@ -140,6 +142,7 @@ export default function App() {
         months={store.months}
         selectedMonth={store.selectedMonth}
         ruleCount={merchants.length}
+        totalBytes={store.totalBytes}
         onReload={() => void refreshConfig()}
         onFile={loadFile}
       />
@@ -165,7 +168,7 @@ export default function App() {
             </>
           ) : view === "dashboard" ? (
             <Dashboard
-              transactions={store.transactions}
+              transactions={store.visibleTransactions}
               months={store.months}
               selectedMonth={store.selectedMonth}
               onSelectMonth={store.setSelectedMonth}
@@ -182,11 +185,25 @@ export default function App() {
               onAdd={store.addTransaction}
               onEdit={store.editTransaction}
               onDelete={store.deleteTransaction}
+              onToggleIgnore={store.toggleIgnore}
             />
           ) : view === "uncategorised" ? (
             <Uncategorised
-              transactions={store.allTransactions}
+              transactions={store.visibleAllTransactions}
               onAddRule={addRuleFor}
+            />
+          ) : view === "storage" ? (
+            <DataStorage
+              monthRows={store.monthRows}
+              totalBytes={store.totalBytes}
+              manualCount={store.persisted.manual.filter((r) => !store.persisted.deletedIds.includes(r.id)).length}
+              ruleCount={merchants.length}
+              onUpload={store.loadFile}
+              onDeleteMonth={store.deleteMonth}
+              onDeleteAll={() => {
+                store.deleteAll();
+                resetMerchants();
+              }}
             />
           ) : (
             <ConfigHelp

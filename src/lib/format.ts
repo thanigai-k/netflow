@@ -22,6 +22,11 @@ export const signed = (paise: number) =>
 export const flowClass = (paise: number) =>
   paise < 0 ? "text-destructive" : "text-success";
 
+/** "162.0 KB" — this app's data never gets big enough to need MB/GB scaling. */
+export function formatBytes(bytes: number): string {
+  return `${(bytes / 1024).toFixed(1)} KB`;
+}
+
 /** Cycles the chart ramp so every bar in a list gets a distinct colour. */
 const BAR_COLORS = [
   "bg-chart-1",

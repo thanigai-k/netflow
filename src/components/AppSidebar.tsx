@@ -15,15 +15,17 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { monthKeyLabel } from "@/dates";
+import { formatBytes } from "@/lib/format";
 import type { StatementMeta } from "@/statements";
 
-export type View = "dashboard" | "transactions" | "uncategorised" | "config";
+export type View = "dashboard" | "transactions" | "uncategorised" | "config" | "storage";
 
 export const VIEWS: { id: View; label: string }[] = [
   { id: "dashboard", label: "Dashboard" },
   { id: "transactions", label: "Transactions" },
   { id: "uncategorised", label: "Uncategorised" },
   { id: "config", label: "Config" },
+  { id: "storage", label: "Data & storage" },
 ];
 
 /** "June 2026 to August 2026", or just "August 2026" for a single month. */
@@ -44,6 +46,7 @@ export function AppSidebar({
   months,
   selectedMonth,
   ruleCount,
+  totalBytes,
   onReload,
   onFile,
 }: {
@@ -55,6 +58,7 @@ export function AppSidebar({
   months: MonthSummary[];
   selectedMonth: string;
   ruleCount: number;
+  totalBytes: number;
   onReload: () => void;
   onFile: (file: File) => void;
 }) {
@@ -86,6 +90,11 @@ export function AppSidebar({
                   {item.id === "uncategorised" && uncategorised > 0 ? (
                     <SidebarMenuBadge className="bg-sidebar-accent top-1.5 rounded-full px-2">
                       {uncategorised}
+                    </SidebarMenuBadge>
+                  ) : null}
+                  {item.id === "storage" && totalBytes > 0 ? (
+                    <SidebarMenuBadge className="text-muted-foreground top-1.5 rounded-full px-2 text-xs">
+                      {formatBytes(totalBytes)}
                     </SidebarMenuBadge>
                   ) : null}
                 </SidebarMenuItem>
