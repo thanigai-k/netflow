@@ -1,6 +1,14 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { buildSummary, coverage, groupByDate, merchantSummary } from "./analytics";
+import {
+  buildSummary,
+  coverage,
+  filterByMonth,
+  groupByDate,
+  merchantSummary,
+  monthSummaries,
+} from "./analytics";
+import { monthKeyLabel } from "./dates";
 import { enrich } from "./enrich";
 import { matchesFilters, merchantDebits, searchMerchants } from "./filters";
 import { UNCATEGORISED, validateConfig, type MerchantRule } from "./merchant/config";
@@ -164,6 +172,42 @@ describe("statement parsing is unchanged", () => {
     expect(parseStatementDate("05-03-24")).toBe("2024-03-05");
     expect(parseStatementDate("12-Jan-2024")).toBe("2024-01-12");
     expect(parseStatementDate("31/02/2024")).toBeNull();
+  });
+});
+
+describe("month filtering", () => {
+  const row = (id: string, date: string, amount: number, transactionType: "DEBIT" | "CREDIT") => ({
+    id,
+    date,
+    narration: "n",
+    amount,
+    transactionType,
+    balance: null,
+    referenceNumber: null,
+    merchant: "UPI",
+  });
+
+  const txns = [
+    row("1", "2026-08-01", 100, "DEBIT"),
+    row("2", "2026-08-15", 200, "CREDIT"),
+    row("3", "2026-07-20", 50, "DEBIT"),
+    row("4", "2026-07-21", 30, "DEBIT"),
+  ];
+
+  it("buckets by calendar month, newest first, debit-only totals", () => {
+    expect(monthSummaries(txns)).toEqual([
+      { month: "2026-08", count: 2, totalDebit: 100 },
+      { month: "2026-07", count: 2, totalDebit: 80 },
+    ]);
+  });
+
+  it("filters to one month, or passes everything through for \"all\"", () => {
+    expect(filterByMonth(txns, "2026-08").map((t) => t.id)).toEqual(["1", "2"]);
+    expect(filterByMonth(txns, "all")).toHaveLength(4);
+  });
+
+  it("formats a month key as a human label", () => {
+    expect(monthKeyLabel("2026-08")).toBe("August 2026");
   });
 });
 

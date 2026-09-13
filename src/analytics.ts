@@ -152,6 +152,37 @@ export function dailyFlow(
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+export interface MonthSummary {
+  /** "2026-08" */
+  month: string;
+  count: number;
+  totalDebit: Paise;
+}
+
+/** One entry per calendar month present in the data, newest first. */
+export function monthSummaries(transactions: Transaction[]): MonthSummary[] {
+  const totals = new Map<string, { count: number; totalDebit: Paise }>();
+  for (const t of transactions) {
+    const month = t.date.slice(0, 7);
+    const entry = totals.get(month) ?? { count: 0, totalDebit: 0 };
+    entry.count += 1;
+    if (isDebit(t)) entry.totalDebit += t.amount;
+    totals.set(month, entry);
+  }
+  return [...totals]
+    .map(([month, v]) => ({ month, ...v }))
+    .sort((a, b) => b.month.localeCompare(a.month));
+}
+
+/** Transactions for one calendar month, or everything when `monthKey` is "all". */
+export function filterByMonth(
+  transactions: Transaction[],
+  monthKey: string | "all",
+): Transaction[] {
+  if (monthKey === "all") return transactions;
+  return transactions.filter((t) => t.date.slice(0, 7) === monthKey);
+}
+
 export interface DayGroup {
   date: string;
   rows: Transaction[];
