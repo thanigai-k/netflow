@@ -15,27 +15,33 @@ export function PageHero({
   eyebrow,
   title,
   subtitle,
+  controls,
   stats,
 }: {
   eyebrow?: string;
   title: string;
   subtitle?: string;
+  /** Slotted above the eyebrow — e.g. the shared month picker. */
+  controls?: React.ReactNode;
   stats?: HeroStat[];
 }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-6">
       <div className="flex items-start gap-2">
         <SidebarTrigger className="mt-1 md:hidden" />
-        <div className="flex flex-col gap-1">
-          {eyebrow ? (
-            <p className="text-muted-foreground text-sm">{eyebrow}</p>
-          ) : null}
-          <h1 className="text-4xl font-semibold tracking-tight tabular-nums">
-            {title}
-          </h1>
-          {subtitle ? (
-            <p className="text-muted-foreground text-sm">{subtitle}</p>
-          ) : null}
+        <div className="flex flex-col gap-2">
+          {controls ? <div>{controls}</div> : null}
+          <div className="flex flex-col gap-1">
+            {eyebrow ? (
+              <p className="text-muted-foreground text-sm">{eyebrow}</p>
+            ) : null}
+            <h1 className="text-4xl font-semibold tracking-tight tabular-nums">
+              {title}
+            </h1>
+            {subtitle ? (
+              <p className="text-muted-foreground text-sm">{subtitle}</p>
+            ) : null}
+          </div>
         </div>
       </div>
       {stats && stats.length > 0 ? (

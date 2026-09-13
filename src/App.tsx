@@ -169,9 +169,20 @@ export default function App() {
               <Landing ruleCount={merchants.length} onFile={loadFile} />
             </>
           ) : view === "dashboard" ? (
-            <Dashboard transactions={store.transactions} onView={setView} />
+            <Dashboard
+              transactions={store.transactions}
+              months={store.months}
+              selectedMonth={store.selectedMonth}
+              onSelectMonth={store.setSelectedMonth}
+              onView={setView}
+            />
           ) : view === "transactions" ? (
-            <TransactionTable transactions={store.transactions} />
+            <TransactionTable
+              transactions={store.transactions}
+              months={store.months}
+              selectedMonth={store.selectedMonth}
+              onSelectMonth={store.setSelectedMonth}
+            />
           ) : view === "uncategorised" ? (
             <Uncategorised
               transactions={store.allTransactions}

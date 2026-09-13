@@ -1,8 +1,15 @@
 import { useMemo, useState } from "react";
 
-import { buildSummary, coverage, merchantSummary, type MerchantRow } from "@/analytics";
+import {
+  buildSummary,
+  coverage,
+  merchantSummary,
+  type MerchantRow,
+  type MonthSummary,
+} from "@/analytics";
 import type { View } from "@/components/AppSidebar";
 import { MerchantDialog } from "@/components/MerchantDialog";
+import { MonthPicker } from "@/components/MonthPicker";
 import { PageHero } from "@/components/PageHero";
 import { SearchField } from "@/components/SearchField";
 import { Button } from "@/components/ui/button";
@@ -15,7 +22,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
-import { barColor, flowClass, monthLabel, signed } from "@/lib/format";
+import { barColor, flowClass, signed } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { formatExact } from "@/money";
 import { searchMerchants } from "@/filters";
@@ -23,9 +30,15 @@ import type { Transaction } from "@/types";
 
 export function Dashboard({
   transactions,
+  months,
+  selectedMonth,
+  onSelectMonth,
   onView,
 }: {
   transactions: Transaction[];
+  months: MonthSummary[];
+  selectedMonth: string;
+  onSelectMonth: (monthKey: string) => void;
   onView: (view: View) => void;
 }) {
   const summary = useMemo(() => buildSummary(transactions), [transactions]);
@@ -52,7 +65,10 @@ export function Dashboard({
   return (
     <>
       <PageHero
-        eyebrow={`Spent in ${monthLabel(summary.from)}`}
+        controls={
+          <MonthPicker months={months} selected={selectedMonth} onSelect={onSelectMonth} />
+        }
+        eyebrow="Spent"
         title={formatExact(summary.totalDebit)}
         stats={[
           {

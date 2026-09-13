@@ -5,7 +5,8 @@ import {
 } from "@phosphor-icons/react";
 import { Fragment, useMemo, useState } from "react";
 
-import { buildSummary, groupByDate } from "@/analytics";
+import { groupByDate, type MonthSummary } from "@/analytics";
+import { MonthPicker } from "@/components/MonthPicker";
 import { PageHero } from "@/components/PageHero";
 import { SearchField } from "@/components/SearchField";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +35,8 @@ import {
 } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { matchesFilters } from "@/filters";
-import { flowClass, monthLabel, signed, weekday } from "@/lib/format";
+import { monthKeyLabel } from "@/dates";
+import { flowClass, signed, weekday } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { formatExact } from "@/money";
 import { UNCATEGORISED } from "@/merchant/config";
@@ -45,8 +47,14 @@ type SortKey = "date" | "merchant" | "amount";
 
 export function TransactionTable({
   transactions,
+  months,
+  selectedMonth,
+  onSelectMonth,
 }: {
   transactions: Transaction[];
+  months: MonthSummary[];
+  selectedMonth: string;
+  onSelectMonth: (monthKey: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
@@ -61,8 +69,6 @@ export function TransactionTable({
     () => [...new Set(transactions.map((t) => t.merchant))].sort(),
     [transactions],
   );
-
-  const summary = useMemo(() => buildSummary(transactions), [transactions]);
 
   const rows = useMemo(() => {
     const wanted =
@@ -110,8 +116,11 @@ export function TransactionTable({
   return (
     <>
       <PageHero
+        controls={
+          <MonthPicker months={months} selected={selectedMonth} onSelect={onSelectMonth} />
+        }
         title="Transactions"
-        subtitle={`${rows.length} of ${transactions.length} rows for ${monthLabel(summary.from)}, ${grouped && sort.dir === "desc" ? "newest first" : "sorted by " + sort.key}`}
+        subtitle={`${rows.length} of ${transactions.length} rows for ${selectedMonth === "all" ? "all months" : monthKeyLabel(selectedMonth)}, ${grouped && sort.dir === "desc" ? "newest first" : "sorted by " + sort.key}`}
         stats={[
           {
             label: "Filtered total",
