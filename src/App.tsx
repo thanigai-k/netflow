@@ -362,8 +362,9 @@ function Landing({
         <LandingNote title="Labelled by your rules only">
           Anything a rule does not match stays {UNCATEGORISED}.
         </LandingNote>
-        <LandingNote title="Nothing is stored">
-          Close the tab and the statement is gone. Rules stay.
+        <LandingNote title="Stored locally, never uploaded">
+          Statements, manual entries, and edits stay in this browser's
+          storage — nothing is ever sent anywhere.
         </LandingNote>
       </div>
     </div>
