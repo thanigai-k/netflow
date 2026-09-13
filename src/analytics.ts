@@ -183,9 +183,9 @@ export function filterByMonth<T extends Transaction>(
   return transactions.filter((t) => t.date.slice(0, 7) === monthKey);
 }
 
-export interface DayGroup {
+export interface DayGroup<T extends Transaction = Transaction> {
   date: string;
-  rows: Transaction[];
+  rows: T[];
   /** Credits minus debits for the day. */
   net: Paise;
 }
@@ -194,8 +194,8 @@ export interface DayGroup {
  * Folds a date-sorted list into one group per calendar day. Only consecutive
  * equal dates are folded, so the caller's sort order is preserved as-is.
  */
-export function groupByDate(rows: Transaction[]): DayGroup[] {
-  const groups: DayGroup[] = [];
+export function groupByDate<T extends Transaction>(rows: T[]): DayGroup<T>[] {
+  const groups: DayGroup<T>[] = [];
   for (const t of rows) {
     let group = groups[groups.length - 1];
     if (!group || group.date !== t.date) {

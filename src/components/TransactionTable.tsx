@@ -2,6 +2,9 @@ import {
   CaretDownIcon,
   CaretUpDownIcon,
   CaretUpIcon,
+  PencilSimpleIcon,
+  PlusIcon,
+  TrashIcon,
 } from "@phosphor-icons/react";
 import { Fragment, useMemo, useState } from "react";
 
@@ -9,6 +12,7 @@ import { groupByDate, type MonthSummary } from "@/analytics";
 import { MonthPicker } from "@/components/MonthPicker";
 import { PageHero } from "@/components/PageHero";
 import { SearchField } from "@/components/SearchField";
+import { TransactionFormDialog } from "@/components/TransactionFormDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -40,22 +44,41 @@ import { flowClass, signed, weekday } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { formatExact } from "@/money";
 import { UNCATEGORISED } from "@/merchant/config";
+import type { TransactionFormValues, LiveTransaction } from "@/transactions/live";
 import type { Transaction } from "@/types";
 
 type Flow = "all" | "debits" | "credits";
 type SortKey = "date" | "merchant" | "amount";
+
+/** First of the selected month, or today when every month is shown. */
+function defaultDateFor(selectedMonth: string): string {
+  if (selectedMonth !== "all") return `${selectedMonth}-01`;
+  return new Date().toISOString().slice(0, 10);
+}
 
 export function TransactionTable({
   transactions,
   months,
   selectedMonth,
   onSelectMonth,
+  categories,
+  touchedSummary,
+  onAdd,
+  onEdit,
+  onDelete,
 }: {
-  transactions: Transaction[];
+  transactions: LiveTransaction[];
   months: MonthSummary[];
   selectedMonth: string;
   onSelectMonth: (monthKey: string) => void;
+  /** Merchant names from merchants.json, for the add/edit modal's Category field. */
+  categories: string[];
+  touchedSummary: { manual: number; edited: number; deleted: number };
+  onAdd: (form: TransactionFormValues) => void;
+  onEdit: (id: string, form: TransactionFormValues) => void;
+  onDelete: (id: string) => void;
 }) {
+  const [formTarget, setFormTarget] = useState<Transaction | "new" | null>(null);
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const [flow, setFlow] = useState<Flow>("all");
@@ -113,11 +136,19 @@ export function TransactionTable({
         : { key, dir: key === "merchant" ? "asc" : "desc" },
     );
 
+  const touched = touchedSummary.manual + touchedSummary.edited + touchedSummary.deleted;
+
   return (
     <>
       <PageHero
         controls={
-          <MonthPicker months={months} selected={selectedMonth} onSelect={onSelectMonth} />
+          <div className="flex flex-wrap items-center gap-3">
+            <MonthPicker months={months} selected={selectedMonth} onSelect={onSelectMonth} />
+            <Button className="rounded-full" onClick={() => setFormTarget("new")}>
+              <PlusIcon data-icon="inline-start" />
+              Add transaction
+            </Button>
+          </div>
         }
         title="Transactions"
         subtitle={`${rows.length} of ${transactions.length} rows for ${selectedMonth === "all" ? "all months" : monthKeyLabel(selectedMonth)}, ${grouped && sort.dir === "desc" ? "newest first" : "sorted by " + sort.key}`}
@@ -129,6 +160,12 @@ export function TransactionTable({
           },
         ]}
       />
+
+      <p className="text-muted-foreground -mt-3 text-sm">
+        {touched === 0
+          ? "No manual changes in this month"
+          : `${touchedSummary.manual} added · ${touchedSummary.edited} edited · ${touchedSummary.deleted} deleted`}
+      </p>
 
       <Card className="py-3">
         <CardContent className="flex flex-wrap items-center gap-3">
@@ -216,6 +253,7 @@ export function TransactionTable({
                       align="end"
                     />
                   </TableHead>
+                  <TableHead className="w-20" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -233,7 +271,7 @@ export function TransactionTable({
                             </span>
                           </TableCell>
                           <TableCell
-                            colSpan={2}
+                            colSpan={3}
                             className={cn(
                               "text-muted-foreground pt-6 text-right tabular-nums",
                               group.net > 0 && "text-success",
@@ -242,17 +280,24 @@ export function TransactionTable({
                             {signed(group.net)}
                           </TableCell>
                         </TableRow>
-                        {group.rows.map((t, index) => (
+                        {group.rows.map((t) => (
                           <TransactionRow
-                            key={`${t.date}-${index}`}
+                            key={t.id}
                             transaction={t}
                             indent
+                            onEdit={() => setFormTarget(t)}
+                            onDelete={() => onDelete(t.id)}
                           />
                         ))}
                       </Fragment>
                     ))
-                  : rows.map((t, index) => (
-                      <TransactionRow key={`${t.date}-${index}`} transaction={t} />
+                  : rows.map((t) => (
+                      <TransactionRow
+                        key={t.id}
+                        transaction={t}
+                        onEdit={() => setFormTarget(t)}
+                        onDelete={() => onDelete(t.id)}
+                      />
                     ))}
               </TableBody>
             </Table>
@@ -276,6 +321,24 @@ export function TransactionTable({
           </CardFooter>
         ) : null}
       </Card>
+
+      {formTarget ? (
+        <TransactionFormDialog
+          transaction={formTarget === "new" ? null : formTarget}
+          categories={categories}
+          defaultDate={defaultDateFor(selectedMonth)}
+          onSave={(form) => {
+            if (formTarget === "new") onAdd(form);
+            else onEdit(formTarget.id, form);
+            setFormTarget(null);
+          }}
+          onDelete={() => {
+            if (formTarget !== "new") onDelete(formTarget.id);
+            setFormTarget(null);
+          }}
+          onClose={() => setFormTarget(null)}
+        />
+      ) : null}
     </>
   );
 }
@@ -327,10 +390,14 @@ function MerchantCell({ merchant }: { merchant: string }) {
 function TransactionRow({
   transaction: t,
   indent = false,
+  onEdit,
+  onDelete,
 }: {
-  transaction: Transaction;
+  transaction: LiveTransaction;
   /** Inside a day group the date lives on the group header, not the row. */
   indent?: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const credit = t.transactionType === "CREDIT";
   return (
@@ -339,12 +406,21 @@ function TransactionRow({
         {indent ? "" : t.date}
       </TableCell>
       <TableCell className="max-w-0 font-mono text-xs">
-        <span
-          className="block truncate text-muted-foreground"
-          title={t.narration}
-        >
-          {t.narration}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className="block truncate text-muted-foreground"
+            title={t.narration}
+          >
+            {t.narration}
+          </span>
+          {t.manual ? (
+            <Badge className="bg-primary/15 text-primary flex-none font-sans">Added</Badge>
+          ) : t.edited ? (
+            <Badge variant="secondary" className="flex-none font-sans">
+              Edited
+            </Badge>
+          ) : null}
+        </div>
       </TableCell>
       <TableCell>
         <MerchantCell merchant={t.merchant} />
@@ -357,6 +433,22 @@ function TransactionRow({
       >
         {credit ? "+" : "−"}
         {formatExact(t.amount)}
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center justify-end gap-1">
+          <Button variant="ghost" size="icon-sm" title="Edit" onClick={onEdit}>
+            <PencilSimpleIcon />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title="Delete"
+            className="hover:bg-destructive/10 hover:text-destructive"
+            onClick={onDelete}
+          >
+            <TrashIcon />
+          </Button>
+        </div>
       </TableCell>
     </TableRow>
   );

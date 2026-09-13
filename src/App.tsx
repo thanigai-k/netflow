@@ -176,6 +176,11 @@ export default function App() {
               months={store.months}
               selectedMonth={store.selectedMonth}
               onSelectMonth={store.setSelectedMonth}
+              categories={merchants.map((m) => m.name)}
+              touchedSummary={store.touchedSummary}
+              onAdd={store.addTransaction}
+              onEdit={store.editTransaction}
+              onDelete={store.deleteTransaction}
             />
           ) : view === "uncategorised" ? (
             <Uncategorised
