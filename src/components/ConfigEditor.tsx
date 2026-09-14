@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/table";
 import type { MerchantRule } from "../merchant/config";
 import { toFileJson } from "../merchant/store";
+import { SearchField } from "@/components/SearchField";
 
 /** Which rule the dialog is editing: an index, or "new". */
 type Editing = { index: number; rule: MerchantRule } | null;
@@ -68,6 +69,19 @@ export function ConfigEditor({
   const [editing, setEditing] = useState<Editing>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
+  const [query, setQuery] = useState("");
+
+  // Keeps each row's original index for match-order rank and for
+  // move/edit/delete, which act on positions in the full `merchants` array.
+  const q = query.trim().toLowerCase();
+  const filtered = merchants
+    .map((rule, index) => ({ rule, index }))
+    .filter(
+      ({ rule }) =>
+        q === "" ||
+        rule.name.toLowerCase().includes(q) ||
+        rule.contains.some((keyword) => keyword.toLowerCase().includes(q)),
+    );
 
   // A narration arriving from Uncategorised opens the dialog on a new rule.
   const open: Editing =
@@ -123,17 +137,25 @@ export function ConfigEditor({
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-medium">Categories, in match order</h3>
-        <Button
-          size="sm"
-          onClick={() =>
-            setEditing({
-              index: merchants.length,
-              rule: { name: "", contains: [] },
-            })
-          }
-        >
-          <PlusIcon /> Add category
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            placeholder="Search categories"
+            className="sm:w-64"
+          />
+          <Button
+            size="sm"
+            onClick={() =>
+              setEditing({
+                index: merchants.length,
+                rule: { name: "", contains: [] },
+              })
+            }
+          >
+            <PlusIcon /> Add category
+          </Button>
+        </div>
       </div>
 
       <Table>
@@ -146,7 +168,7 @@ export function ConfigEditor({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {merchants.map((rule, index) => (
+          {filtered.map(({ rule, index }) => (
             <TableRow key={`${rule.name}-${index}`}>
               <TableCell className="text-right">{index + 1}</TableCell>
               <TableCell>{rule.name}</TableCell>
@@ -210,6 +232,12 @@ export function ConfigEditor({
         <Empty>
           <EmptyHeader>
             <EmptyTitle>No rules loaded</EmptyTitle>
+          </EmptyHeader>
+        </Empty>
+      ) : filtered.length === 0 ? (
+        <Empty>
+          <EmptyHeader>
+            <EmptyTitle>No categories match &ldquo;{query}&rdquo;</EmptyTitle>
           </EmptyHeader>
         </Empty>
       ) : null}

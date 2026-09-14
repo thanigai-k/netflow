@@ -36,11 +36,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useTransactionStore } from "@/hooks/use-transaction-store";
 import { cn } from "@/lib/utils";
-import { coverage, uncategorisedSpending } from "./analytics";
+import { coverage, uncategorisedSpending, type MonthSummary } from "./analytics";
 import { AppSidebar, type View } from "./components/AppSidebar";
 import { ConfigEditor } from "./components/ConfigEditor";
 import { Dashboard } from "./components/Dashboard";
 import { DataStorage } from "./components/DataStorage";
+import { MonthPicker } from "./components/MonthPicker";
 import { PageHero } from "./components/PageHero";
 import { TransactionTable } from "./components/TransactionTable";
 import { UndoToast } from "./components/UndoToast";
@@ -189,7 +190,10 @@ export default function App() {
             />
           ) : view === "uncategorised" ? (
             <Uncategorised
-              transactions={store.visibleAllTransactions}
+              transactions={store.visibleTransactions}
+              months={store.months}
+              selectedMonth={store.selectedMonth}
+              onSelectMonth={store.setSelectedMonth}
               onAddRule={addRuleFor}
             />
           ) : view === "storage" ? (
@@ -409,9 +413,15 @@ function LandingNote({
 
 function Uncategorised({
   transactions,
+  months,
+  selectedMonth,
+  onSelectMonth,
   onAddRule,
 }: {
   transactions: Transaction[];
+  months: MonthSummary[];
+  selectedMonth: string;
+  onSelectMonth: (monthKey: string) => void;
   onAddRule: (narration: string) => void;
 }) {
   const rows = useMemo(
@@ -431,10 +441,14 @@ function Uncategorised({
     [rows],
   );
 
+  const monthPicker = (
+    <MonthPicker months={months} selected={selectedMonth} onSelect={onSelectMonth} />
+  );
+
   if (rows.length === 0) {
     return (
       <>
-        <PageHero title="Uncategorised" />
+        <PageHero title="Uncategorised" controls={monthPicker} />
         <Card>
           <CardContent>
             <Empty>
@@ -454,6 +468,7 @@ function Uncategorised({
   return (
     <>
       <PageHero
+        controls={monthPicker}
         title="Uncategorised"
         subtitle={`${rows.length} narration${rows.length === 1 ? "" : "s"} with no matching rule — hit Add rule to seed one.`}
         stats={[
