@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,12 +12,13 @@ import {
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { UNCATEGORISED } from "@/merchant/config";
 import { parseAmount } from "@/money";
@@ -61,6 +62,7 @@ export function TransactionFormDialog({
 
   const isNew = transaction === null;
   const amountValid = parseAmount(form.amount) !== null;
+  const categoryItems = useMemo(() => [UNCATEGORISED, ...categories], [categories]);
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -132,22 +134,23 @@ export function TransactionFormDialog({
 
         <Field>
           <FieldLabel htmlFor="txn-category">Category</FieldLabel>
-          <Select
+          <Combobox
+            items={categoryItems}
             value={form.category}
             onValueChange={(value) => setForm((f) => ({ ...f, category: value ?? f.category }))}
           >
-            <SelectTrigger id="txn-category" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={UNCATEGORISED}>{UNCATEGORISED}</SelectItem>
-              {categories.map((name) => (
-                <SelectItem key={name} value={name}>
-                  {name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <ComboboxInput id="txn-category" className="w-full" placeholder="Search categories…" />
+            <ComboboxContent>
+              <ComboboxEmpty>No category found.</ComboboxEmpty>
+              <ComboboxList>
+                {(name: string) => (
+                  <ComboboxItem key={name} value={name}>
+                    {name}
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
           <FieldDescription>
             Rules from merchants.json stay in charge of statement rows; this only
             overrides this one.
